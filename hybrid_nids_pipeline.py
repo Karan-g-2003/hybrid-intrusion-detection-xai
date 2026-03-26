@@ -619,6 +619,22 @@ def main():
     print(f"  -> {X_win.shape[0]:,} windows of {cfg.window_size} flows "
           f"x {X_win.shape[2]} features")
 
+    # Map back to text to drop any window-level rare classes and re-encode
+    # This prevents XGBoost crashing if a class is entirely lost after majority voting
+    unique_win_cls, win_cls_counts = np.unique(y_win, return_counts=True)
+    rare_win = unique_win_cls[win_cls_counts < 2]
+    
+    mask = ~np.isin(y_win, rare_win)
+    if not np.all(mask):
+        print(f"  Dropping {np.sum(~mask)} windows belonging to classes with <2 samples.")
+        X_win = X_win[mask]
+        y_win = y_win[mask]
+        
+    text_labels = le.inverse_transform(y_win)
+    le = LabelEncoder()
+    y_win = le.fit_transform(text_labels)
+    print(f"  Classes remaining after windowing: {len(le.classes_)} ({le.classes_.tolist()})")
+
     # ---- 4. Train / test split ----
     X_train, X_test, y_train, y_test = train_test_split(
         X_win, y_win,

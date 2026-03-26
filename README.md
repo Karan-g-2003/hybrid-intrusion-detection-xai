@@ -1,134 +1,320 @@
-<div align="center">
-  <h1>Hybrid Intrusion Detection System with Explainable AI (XAI)</h1>
-  <p><strong>A Temporal Flow Windowing Approach to Network Anomaly Detection</strong></p>
-  
-  [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
-  [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.15%2B-orange.svg)](https://tensorflow.org)
-  [![XGBoost](https://img.shields.io/badge/XGBoost-2.0%2B-lightgrey.svg)](https://xgboost.readthedocs.io/)
-  [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-</div>
+# 🛡️ Hybrid Network Intrusion Detection System with Explainable AI
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Accuracy-97.33%25-brightgreen?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/F1_Weighted-0.9728-blue?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Dataset-CIC--IDS--2017-orange?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Python-3.10%2B-yellow?style=for-the-badge&logo=python" />
+  <img src="https://img.shields.io/badge/TensorFlow-2.15%2B-FF6F00?style=for-the-badge&logo=tensorflow" />
+  <img src="https://img.shields.io/badge/XGBoost-2.0%2B-red?style=for-the-badge" />
+</p>
+
+> **Final Year Capstone Project** — A production-ready, hybrid deep learning + machine learning pipeline for network intrusion detection, augmented with dual-layer explainability (SHAP + Gradient Attribution).
 
 ---
 
 ## 📌 Overview
 
-Modern networks face increasingly sophisticated cyber threats. Traditional anomaly-based Intrusion Detection Systems (IDS) rely heavily on deep learning, which often acts as a opaque "black box" and treats individual network packets or flows as isolated events.
+This project implements a **Hybrid Network Intrusion Detection System (NIDS)** that combines the temporal representation power of deep learning with the classification strength of gradient-boosted trees, while remaining fully interpretable through Explainable AI (XAI) techniques.
 
-This project implements a **novel Hybrid NIDS architecture** capable of accurately classifying complex cyberattacks while providing deep interpretability. Instead of analyzing independent flows, our model utilizes **Temporal Flow Windowing** to learn sequential attack signatures, and fuses deep feature extraction with an interpretable XGBoost decision layer.
+### Key Contributions
 
-Built for the **CIC-IDS-2017** benchmark dataset.
-
----
-
-## 🚀 Key Research Contributions
-
-1. **Temporal Flow Windowing**  
-   Unlike standard approaches that treat each network flow independently (`timesteps=1`), our architecture groups consecutive traffic flows into temporal windows. This allows the Bi-LSTM layers to learn the *sequential* nature of cyberattacks (e.g., a port scan preceding a brute-force attempt).
-
-2. **Focal Loss for Extreme Class Imbalance**  
-   The CIC-IDS-2017 dataset is heavily dominated by `BENIGN` traffic (~80%). By replacing standard cross-entropy with Focal Loss, our deep learning pre-training down-weights easy majority samples, forcing the model to focus on subtle, rare attack vectors.
-
-3. **Dual-Layer Explainability (XAI)**  
-   - **Layer 1 (XGBoost Level):** SHAP analysis explains which high-level deep features drive the final classification.
-   - **Layer 2 (Deep Feature Level):** Gradient attribution maps abstract deep feature importance back to the original network features (e.g., Flow Duration, Packet Length Mdn), providing actionable intelligence to Security Operations Centers (SOCs).
-
-4. **Rigorous Ablation Methodology**  
-   Proves the value of the hybrid architecture by directly comparing three models on the exact same temporal windows: XGBoost-only, DL-only, and Hybrid (Ours).
+| # | Contribution | Description |
+|---|---|---|
+| 1 | **Temporal Flow Windowing** | Groups W consecutive network flows into sequences, enabling the Bi-LSTM to learn real temporal attack patterns instead of treating each packet independently |
+| 2 | **Focal Loss Training** | Addresses CIC-IDS-2017's heavy class imbalance (benign traffic >> attack traffic) by dynamically down-weighting easy examples |
+| 3 | **Hybrid DL→XGBoost Architecture** | Uses a trained deep learning encoder as a feature extractor; XGBoost classifies the compressed 128-dim representations |
+| 4 | **Dual-Layer Explainability** | SHAP TreeExplainer on XGBoost deep features + gradient attribution mapped back to original network packet features |
 
 ---
 
-## 🧠 System Architecture
+## 🏗️ Architecture
 
-Our hybrid model forms a multi-stage pipeline:
-
-```mermaid
-graph TD
-    A[Raw Network Traffic\nCIC-IDS-2017] --> B[Data Prep & Scaling]
-    B --> C[Temporal Flow Windowing\nwindow_size=10]
-    
-    subgraph Deep Feature Extractor
-    C --> D[Dense 64 + Dropout]
-    D --> E[Bi-LSTM 64]
-    E --> F[Multi-Head Attention\n4 Heads]
-    E -.-|Residual Skip| G
-    F --> G[Layer Normalization]
-    G --> H[Global Avg Pooling 1D]
-    end
-    
-    H -->|Deep Features| I[XGBoost Classifier]
-    
-    subgraph Explainability Engine
-    I --> J[SHAP TreeExplainer]
-    H -.->|Gradients| K[Input Attribution]
-    end
+```
+Raw Network Flows (CIC-IDS-2017)
+         │
+         ▼
+┌─────────────────────────────────────────┐
+│         Temporal Flow Windowing          │
+│  W consecutive flows → (W, F) sequence  │
+└─────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────┐
+│       DL Feature Extractor               │
+│                                          │
+│  Input(W, F)                            │
+│    → Dense(64, ReLU) + Dropout(0.3)    │
+│    → Bi-LSTM(64, return_sequences=True) │
+│    → MultiHeadAttention(4 heads)        │
+│    → [Residual + LayerNorm]             │
+│    → GlobalAveragePooling1D             │
+│    → 128-dim feature vector             │
+│                                          │
+│  Trained with Focal Loss (γ=2, α=0.25) │
+└─────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────┐
+│       XGBoost Classifier                 │
+│  n_estimators=300, max_depth=7          │
+│  → Final traffic classification          │
+└─────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────┐
+│       XAI Layer                          │
+│  • SHAP TreeExplainer (XGBoost feats)   │
+│  • Gradient Attribution (original feats)│
+└─────────────────────────────────────────┘
 ```
 
 ---
 
-## 📊 Evaluation Metrics
+## 📊 Results
 
-The pipeline evaluates the model beyond simple accuracy, generating a publication-quality artifacts suite in the `outputs/` folder:
+### Final Model Performance (Hybrid DL → XGBoost)
 
-- **Confusion Matrix:** Raw counts and row-normalized percentages.
-- **ROC-AUC Curves:** One-vs-Rest AUC for all detected attack classes.
-- **Ablation Study:** Macro/weighted F1 comparisons across architectural variants.
-- **Interpretability Plots:** SHAP bar charts and gradient attribution horizontal bars.
+| Metric | Score |
+|---|---|
+| **Accuracy** | **97.33%** |
+| **F1 (Macro)** | **0.9076** |
+| **F1 (Weighted)** | **0.9728** |
+
+### Per-Class Breakdown
+
+| Class | Precision | Recall | F1-Score | Support |
+|---|---|---|---|---|
+| BENIGN | 0.98 | 0.98 | 0.98 | 2,814 |
+| DDoS | 0.95 | 0.98 | 0.97 | 660 |
+| DoS Hulk | 0.84 | 0.71 | 0.77 | 122 |
+
+### Ablation Study — Why the Hybrid Approach Wins
+
+| Method | Accuracy | F1 (Macro) | F1 (Weighted) |
+|---|---|---|---|
+| XGBoost (raw flattened windows) | 95.13% | 0.8012 | 0.9464 |
+| DL Only (softmax head) | 97.22% | 0.8888 | 0.9708 |
+| **Hybrid DL→XGBoost (Ours)** | **97.33%** | **0.9076** | **0.9728** |
+
+The ablation confirms that each component contributes meaningfully — the DL encoder extracts richer representations than flat features alone, and XGBoost's ensemble structure pushes the final performance above the DL-only baseline.
 
 ---
 
-## 🛠️ Installation & Usage
+## 📁 Project Structure
 
-### 1. Requirements
+```
+hybrid-intrusion-detection-xai/
+│
+├── hybrid_nids_pipeline.py     # Main pipeline (training, evaluation, XAI)
+├── live_demo.ipynb             # Interactive inference notebook
+├── requirements.txt            # Python dependencies
+│
+├── data/                       # Place CIC-IDS-2017 CSV files here (not tracked)
+│   ├── Monday-WorkingHours.pcap_ISCX.csv
+│   ├── Wednesday-workingHours.pcap_ISCX.csv
+│   └── Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv
+│
+├── models/                     # Saved model artifacts (generated, not tracked)
+│   ├── feature_extractor.keras
+│   ├── xgb_classifier.joblib
+│   ├── label_encoder.joblib
+│   ├── scaler.joblib
+│   └── window_size.joblib
+│
+└── outputs/                    # Generated plots and reports
+    ├── classification_report.txt
+    ├── ablation_results.csv
+    ├── confusion_matrix.png
+    ├── roc_curves.png
+    ├── training_history.png
+    ├── ablation_study.png
+    ├── class_distribution.png
+    ├── shap_deep_features.png
+    └── gradient_attribution.png
+```
 
-Clone the repository and install the required dependencies:
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Python 3.10+
+- ~8 GB RAM recommended
+- GPU optional (TensorFlow will use CPU automatically)
+
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/Karan-g-2003/hybrid-intrusion-detection-xai.git
 cd hybrid-intrusion-detection-xai
+```
+
+### 2. Install Dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Dataset Setup
-Download the CIC-IDS-2017 CSV files and place them in the `data/` directory. By default, the pipeline expects:
-- `Monday-WorkingHours.pcap_ISCX.csv`
-- `Wednesday-workingHours.pcap_ISCX.csv`
-- `Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv`
+### 3. Download the Dataset
 
-### 3. Run Pipeline Complete
-To execute the full data loading, windowing, DL training, XGBoost training, and XAI ablation suite:
+Download the **CIC-IDS-2017** dataset from:
+> [https://www.unb.ca/cic/datasets/ids-2017.html](https://www.unb.ca/cic/datasets/ids-2017.html)
+
+Place the following three CSV files in the `data/` folder:
+
+```
+data/Monday-WorkingHours.pcap_ISCX.csv
+data/Wednesday-workingHours.pcap_ISCX.csv
+data/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv
+```
+
+### 4. Run the Full Pipeline
 
 ```bash
 python hybrid_nids_pipeline.py
 ```
 
-*Note: The script implements memory-safe stratified sampling (default: 60,000 rows per day) to allow execution on consumer hardware. You can adjust `Config.sample_per_file` in the script to scale up.*
+This will:
+1. Load and stratify-sample 60,000 rows per CSV file
+2. Create temporal flow windows (W=10)
+3. Train the DL feature extractor with Focal Loss
+4. Run 3-way ablation study
+5. Train and evaluate the hybrid XGBoost classifier
+6. Generate SHAP + gradient attribution plots
+7. Save all models to `models/` and plots to `outputs/`
 
----
+### 5. Live Inference Demo
 
-## 📂 Project Structure
+Open `live_demo.ipynb` in Jupyter to run single-sample inference on pre-trained models:
 
-```text
-hybrid-intrusion-detection-xai/
-├── data/                      # Place CIC-IDS-2017 CSVs here
-├── models/                    # Saved artifacts (auto-generated)
-│   ├── feature_extractor.keras
-│   └── xgb_classifier.joblib
-├── outputs/                   # XAI plots and evaluation metrics
-│   ├── ablation_study.png     # Hybrid vs Base models
-│   ├── roc_curves.png         # One-vs-Rest ROC
-│   └── shap_deep_features.png # SHAP explainability
-├── hybrid_nids_pipeline.py    # Main training & evaluation script
-├── live_demo.ipynb            # Notebook demonstrating live inference
-├── requirements.txt           # Python dependencies
-└── README.md
+```bash
+jupyter notebook live_demo.ipynb
 ```
 
 ---
 
-## 📝 License & Attribution
+## 🔍 Explainability
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+This project implements **dual-layer XAI** — a key research contribution:
 
-**Dataset:** 
-Canadian Institute for Cybersecurity, University of New Brunswick  
-[CIC-IDS-2017 Dataset](https://www.unb.ca/cic/datasets/ids-2017.html)
+### Layer 1: SHAP on XGBoost Deep Features
+Explains which of the 128 **compressed deep features** influence the final classification, using SHAP's TreeExplainer for exact Shapley values.
+
+![SHAP Deep Features](outputs/shap_deep_features.png)
+
+### Layer 2: Gradient Attribution to Original Features
+Traces importance back to the **original network packet features** (flow duration, packet length, port numbers, etc.) using TensorFlow GradientTape, giving human-interpretable explanations.
+
+![Gradient Attribution](outputs/gradient_attribution.png)
+
+---
+
+## 📈 Generated Visualizations
+
+| Plot | Description |
+|---|---|
+| `training_history.png` | Loss and accuracy curves per epoch |
+| `confusion_matrix.png` | Count + normalized confusion matrices |
+| `roc_curves.png` | Per-class ROC curves with AUC scores |
+| `ablation_study.png` | Bar chart comparing all 3 methods |
+| `class_distribution.png` | Traffic class imbalance visualization |
+| `shap_deep_features.png` | SHAP importance of 128 deep features |
+| `gradient_attribution.png` | Top-20 original network feature attributions |
+
+---
+
+## 🧠 Technical Details
+
+### Dataset: CIC-IDS-2017
+
+The Canadian Institute for Cybersecurity Intrusion Detection dataset 2017 contains labeled network traffic captured over 5 days. This project uses:
+- **Monday** — Benign traffic baseline
+- **Wednesday** — DoS / Hulk attacks
+- **Friday Afternoon** — DDoS attacks
+
+Memory-safe stratified sampling (60,000 rows/file) is used to handle the full dataset size.
+
+### Temporal Flow Windowing
+
+Instead of classifying each flow in isolation, W=10 consecutive flows are grouped into a temporal window `(W, F)`. This enables:
+- The **Bi-LSTM** to capture attack build-up patterns across time
+- **Multi-Head Attention** to weight the most relevant timesteps in the window
+- Window labels via **majority vote** across constituent flows
+
+### Focal Loss
+
+Focal Loss (Lin et al., ICCV 2017) is used during DL pre-training to handle the severe class imbalance (benign traffic >> attacks):
+
+```
+FL(p_t) = -α(1 - p_t)^γ · log(p_t)
+```
+
+With γ=2.0 and α=0.25, the loss down-weights easily classified benign samples and focuses learning on rare attack classes.
+
+---
+
+## 📦 Model Artifacts
+
+After training, the following artifacts are saved in `models/`:
+
+| File | Description |
+|---|---|
+| `feature_extractor.keras` | Trained Keras DL encoder (606 KB) |
+| `xgb_classifier.joblib` | Trained XGBoost classifier (~2.1 MB) |
+| `scaler.joblib` | StandardScaler fitted on training data |
+| `label_encoder.joblib` | LabelEncoder for traffic class names |
+| `window_size.joblib` | Window size hyperparameter for inference |
+
+> **Note:** Model files are excluded from Git (`.gitignore`) due to size. Re-generate by running the pipeline.
+
+---
+
+## 📋 Configuration
+
+All hyperparameters are centralized in the `Config` dataclass at the top of `hybrid_nids_pipeline.py`:
+
+```python
+@dataclass
+class Config:
+    sample_per_file: int = 60_000    # rows to sample per CSV
+    window_size: int = 10            # flows per temporal window
+    dense_units: int = 64            # DL dense layer size
+    lstm_units: int = 64             # Bi-LSTM units per direction
+    attn_heads: int = 4              # Multi-head attention heads
+    focal_gamma: float = 2.0         # Focal loss concentration
+    epochs: int = 15                 # Max training epochs
+    xgb_n_estimators: int = 300      # XGBoost trees
+    # ...and more
+```
+
+---
+
+## 🎓 Academic Context
+
+This project was developed as a **Final Year Capstone** for a B.Tech/B.E. degree. The pipeline demonstrates:
+
+- **Novel architecture**: Combining temporal deep learning with gradient-boosted ensemble trees
+- **Research-grade evaluation**: Ablation study, ROC curves, confusion matrix analysis
+- **Explainability focus**: Dual XAI layer addresses the "black box" criticism of deep learning in security systems
+- **Production readiness**: Modular code, config dataclass, serialized models, live inference function
+
+---
+
+## 📚 References
+
+1. Lin, T. et al. — *Focal Loss for Dense Object Detection*, ICCV 2017
+2. Lundberg, S. & Lee, S-I. — *A Unified Approach to Interpreting Model Predictions*, NeurIPS 2017 (SHAP)
+3. Canadian Institute for Cybersecurity — *CIC-IDS-2017 Dataset*
+4. Chen, T. & Guestrin, C. — *XGBoost: A Scalable Tree Boosting System*, KDD 2016
+
+---
+
+## 🪪 License
+
+This project is released for academic and educational use.
+
+---
+
+<p align="center">Made with ❤️ for Final Year Capstone | CIC-IDS-2017 | TF + XGBoost + SHAP</p>

@@ -1,0 +1,13 @@
+Accuracy:      0.9733
+F1 (macro):    0.9076
+F1 (weighted): 0.9728
+
+              precision    recall  f1-score   support
+
+      BENIGN       0.98      0.98      0.98      2814
+        DDoS       0.95      0.98      0.97       660
+    DoS Hulk       0.84      0.71      0.77       122
+
+    accuracy                           0.97      3596
+   macro avg       0.93      0.89      0.91      3596
+weighted avg       0.97      0.97      0.97      3596
