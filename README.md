@@ -35,35 +35,35 @@ Raw Network Flows (CIC-IDS-2017)
          │
          ▼
 ┌─────────────────────────────────────────┐
-│         Temporal Flow Windowing          │
+│         Temporal Flow Windowing         │
 │  W consecutive flows → (W, F) sequence  │
 └─────────────────────────────────────────┘
          │
          ▼
 ┌─────────────────────────────────────────┐
-│       DL Feature Extractor               │
-│                                          │
+│       DL Feature Extractor              │
+│                                         │
 │  Input(W, F)                            │
-│    → Dense(64, ReLU) + Dropout(0.3)    │
+│    → Dense(64, ReLU) + Dropout(0.3)     │
 │    → Bi-LSTM(64, return_sequences=True) │
 │    → MultiHeadAttention(4 heads)        │
 │    → [Residual + LayerNorm]             │
 │    → GlobalAveragePooling1D             │
 │    → 128-dim feature vector             │
-│                                          │
-│  Trained with Focal Loss (γ=2, α=0.25) │
+│                                         │
+│  Trained with Focal Loss (γ=2, α=0.25)  │
 └─────────────────────────────────────────┘
          │
          ▼
 ┌─────────────────────────────────────────┐
-│       XGBoost Classifier                 │
+│       XGBoost Classifier                │
 │  n_estimators=300, max_depth=7          │
-│  → Final traffic classification          │
+│  → Final traffic classification         │
 └─────────────────────────────────────────┘
          │
          ▼
 ┌─────────────────────────────────────────┐
-│       XAI Layer                          │
+│       XAI Layer                         │
 │  • SHAP TreeExplainer (XGBoost feats)   │
 │  • Gradient Attribution (original feats)│
 └─────────────────────────────────────────┘
